@@ -496,6 +496,7 @@ public class MonitorLivroOfertas {
 		protected String jQA;
 		protected String jPC;
 		protected String jQTO;
+		
 	}
 	
 }
