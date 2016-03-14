@@ -3,14 +3,12 @@ package br.com.lle.sata.util.monitoracao;
 import static br.com.lle.sata.util.StringUtil.concat;
 
 import java.io.DataInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
@@ -18,11 +16,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Scanner;
-import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.commons.io.FileUtils;
-
+import br.com.lle.sata.alert.domain.UsuarioAlert;
+import br.com.lle.sata.alert.interfaces.INotificacao;
+import br.com.lle.sata.alert.notificacao.Notificacao;
 import br.com.lle.sata.mobile.core.util.BlackScholes;
 import br.com.lle.sata.util.LogUtil;
 
@@ -42,12 +40,13 @@ public class MonitorLivroOfertas {
 	
 	private static long MIN_TIMEOUT_LEITURA = 2000;
 	
-	private static long TIMEOUT_MONITORACAO = 20000;
+	private static long TIMEOUT_MONITORACAO = 4000;
 	
 	private static String conteudoRecente;
 	
 	private static Map<String, IAtivoMini> MAP_ATIVOS = new LinkedHashMap<>();
 	
+	private static List<UsuarioAlert> USUARIOS = new ArrayList<>();
 	
 	static {
 		iniciarDadosStaticos();
@@ -57,12 +56,17 @@ public class MonitorLivroOfertas {
 		try {
 			urlBuscarRespostas = new URL(URL_BUSCAR_RESPOSTAS);
 			
-			int qtdDiasVenc1 = 39;
+			int qtdDiasVenc1 = 38;
 			MAP_ATIVOS.put("PETR4", new MonitorLivroOfertas().new AcaoMini("PETR4"));
-			MAP_ATIVOS.put("PETRD70", new MonitorLivroOfertas().new OpcaoMini("PETRD70", new BigDecimal("7.00"), qtdDiasVenc1, true));
-			MAP_ATIVOS.put("PETRP70", new MonitorLivroOfertas().new OpcaoMini("PETRP70", new BigDecimal("7.00"), qtdDiasVenc1, false));
-			MAP_ATIVOS.put("PETRD73", new MonitorLivroOfertas().new OpcaoMini("PETRD73", new BigDecimal("7.30"), qtdDiasVenc1, true));
-			MAP_ATIVOS.put("PETRP73", new MonitorLivroOfertas().new OpcaoMini("PETRP73", new BigDecimal("7.30"), qtdDiasVenc1, false));
+			MAP_ATIVOS.put("PETRD78", new MonitorLivroOfertas().new OpcaoMini("PETRD78", new BigDecimal("7.80"), qtdDiasVenc1, true));
+			MAP_ATIVOS.put("PETRP78", new MonitorLivroOfertas().new OpcaoMini("PETRP78", new BigDecimal("7.80"), qtdDiasVenc1, false));
+			MAP_ATIVOS.put("PETRD80", new MonitorLivroOfertas().new OpcaoMini("PETRD80", new BigDecimal("8.00"), qtdDiasVenc1, true));
+			MAP_ATIVOS.put("PETRP80", new MonitorLivroOfertas().new OpcaoMini("PETRP80", new BigDecimal("8.00"), qtdDiasVenc1, false));
+			MAP_ATIVOS.put("PETRD35", new MonitorLivroOfertas().new OpcaoMini("PETRD35", new BigDecimal("8.40"), qtdDiasVenc1, true));
+			MAP_ATIVOS.put("PETRP35", new MonitorLivroOfertas().new OpcaoMini("PETRP35", new BigDecimal("8.40"), qtdDiasVenc1, false));
+			
+			USUARIOS.add(new UsuarioAlert("lyntonbr", "APA91bEStrVI65Qf8awLjXdAX1VLcmaEpVNAorWF_ZyWC-28txG-EG-bAiLANV4K2oPPyZIrHWBh0-eoL9e7n3bMMzKdE2oTOs7Dco_zDTeExCmEawzE368CRVBqriEaAFBLdxkht9fiSphe-EENecK6B9teVM4Z_Q"));
+			
 		} catch (Exception e) {
 			// TODO: handle exception
 			e.printStackTrace();
@@ -130,15 +134,6 @@ public class MonitorLivroOfertas {
 	
 	
 	public static void main(String[] args) throws InterruptedException, IOException {
-		
-		/*
-		String arquivo = "LivroOfertas_1457656460842";
-		List<String> linhas = FileUtils.readLines(new File(arquivo));
-		for (String linha : linhas) {
-			LeituraLivroOferta llo =  gson.fromJson(linha, LeituraLivroOferta.class);
-			LogUtil.log(llo.toString());
-		}
-		*/
 
 		//String urlCotacao = "https://www.gradualinvestimentos.com.br/Async/Login.aspx";
 		
@@ -146,38 +141,50 @@ public class MonitorLivroOfertas {
 		
 		//String url = "https://homebroker.gradualinvestimentos.com.br/Backend/CentralizadorDeRespostas.aspx?Acao=BuscarRespostas";
 
-		String aspnetSessionID = "ASP.NET_SessionId=mrqrjorue3vhmqfik2zoqqin;";
+		String aspnetSessionID = "ASP.NET_SessionId=u2wh5yv20biopq5uxwbr4c12;";
 		
 		Hashtable<String, String> ht = new Hashtable<>();
 		
 		ht.put("Cookie", aspnetSessionID);
 		
+		/*
 		for (IAtivoMini ativoMini : MAP_ATIVOS.values()) {
 			String assinarPapel = MessageFormat.format(URL_ASSINAR_PAPEL, ativoMini.getCodigoAtivo());
 			String response = MonitorLivroOfertas.GET(assinarPapel, ht);
 			LogUtil.log(response);
 		}
-		
+		*/
+		// cria o objeto que processa os dados lidos
+		MonitorLivroOfertas.ProcessarLivroOfertas mp = new MonitorLivroOfertas().new ProcessarLivroOfertas();
 		// cria uma thread para processar o livro de ofertas
-		Thread t = new Thread(new MonitorLivroOfertas().new ProcessarLivroOfertas());
+		Thread t = new Thread(mp);
 		// inicia o processamento
 		t.start();
+		
+		/*
 		// cria um timer para fazer a leitura
 		Timer timer = new Timer(true);
 		// instancia a task que ira fazer a leitura
-		TimerTask task = new MonitorLivroOfertas().new LivroOfertasTask(aspnetSessionID);
+		TimerTask leituraLivroOfertaTask = new MonitorLivroOfertas().new LivroOfertasTask(aspnetSessionID);
 		// vai rodar a tarefa de leitura a cada tempo definido
-		timer.scheduleAtFixedRate(task, 0, MIN_TIMEOUT_LEITURA);
+		timer.scheduleAtFixedRate(leituraLivroOfertaTask, 0, MIN_TIMEOUT_LEITURA);
 		// para a thread principal por um tempo limitado
 		Thread.sleep(TIMEOUT_MONITORACAO);
+		
+		// para o timer
+		timer.cancel();
+		timer.purge();
+		*/
+		
+		Thread.sleep(TIMEOUT_MONITORACAO);
+		
+		// para a execucao da thread
+		mp.terminate();
+		t.join();
 		
 		System.out.println("FIM PROCESSAMENTO!");
 		
 		/*
-		OFERTA_PAPEIS.put(1L, "{\"IdDaRequisicao\":\"1457628538494\",\"LivrosDeOferta\":[],\"LivrosDeOferta30\":[{\"Papel\":\"PETR4\",\"OfertasDeCompra\":[{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":262,\"jNOC\":\"MIRAE ASSET\",\"jQT\":1400.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":1500.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":6500.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":131,\"jNOC\":\"FATOR\",\"jQT\":17000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":4400.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":2500.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":85,\"jNOC\":\"BTG PACTUAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":16,\"jNOC\":\"JP MORGAN\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":238,\"jNOC\":\"GOLDMAN SACHS\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":9,\"jNOC\":\"DEUTSCHE BANK\",\"jQT\":900.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":16,\"jNOC\":\"JP MORGAN\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":1500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":59,\"jNOC\":\"J SAFRA\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":85,\"jNOC\":\"BTG PACTUAL\",\"jQT\":600.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":3500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":4000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":15,\"jNOC\":\"GUIDE\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":15,\"jNOC\":\"GUIDE\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":6000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRP73\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":23300.0,\"jQA\":null,\"jPC\":\"0,68\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":28600.0,\"jQA\":null,\"jPC\":\"0,68\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":29800.0,\"jQA\":null,\"jPC\":\"0,66\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":28600.0,\"jQA\":null,\"jPC\":\"0,72\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":23300.0,\"jQA\":null,\"jPC\":\"0,72\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":29800.0,\"jQA\":null,\"jPC\":\"0,72\",\"jQTO\":\"-\"},{\"jNUC\":386,\"jNOC\":\"OCTO\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"0,95\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRP70\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":24500.0,\"jQA\":null,\"jPC\":\"0,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30400.0,\"jQA\":null,\"jPC\":\"0,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30100.0,\"jQA\":null,\"jPC\":\"0,54\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":31500.0,\"jQA\":null,\"jPC\":\"0,53\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"0,48\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"0,47\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"0,45\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30100.0,\"jQA\":null,\"jPC\":\"0,58\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":24800.0,\"jQA\":null,\"jPC\":\"0,58\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30100.0,\"jQA\":null,\"jPC\":\"0,59\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":24800.0,\"jQA\":null,\"jPC\":\"0,59\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":10000.0,\"jQA\":null,\"jPC\":\"0,62\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"0,65\",\"jQTO\":\"-\"},{\"jNUC\":262,\"jNOC\":\"MIRAE ASSET\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"0,85\",\"jQTO\":\"-\"},{\"jNUC\":308,\"jNOC\":\"CLEAR\",\"jQT\":3700.0,\"jQA\":null,\"jPC\":\"0,90\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRD70\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20400.0,\"jQA\":null,\"jPC\":\"1,16\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20200.0,\"jQA\":null,\"jPC\":\"1,15\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":16600.0,\"jQA\":null,\"jPC\":\"1,15\",\"jQTO\":\"-\"},{\"jNUC\":15,\"jNOC\":\"GUIDE\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"1,15\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":16600.0,\"jQA\":null,\"jPC\":\"1,14\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"1,12\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":17500.0,\"jQA\":null,\"jPC\":\"1,12\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":4900.0,\"jQA\":null,\"jPC\":\"1,10\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"1,00\",\"jQTO\":\"-\"},{\"jNUC\":114,\"jNOC\":\"ITAU\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"0,91\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":1200.0,\"jQA\":null,\"jPC\":\"0,90\",\"jQTO\":\"-\"},{\"jNUC\":1982,\"jNOC\":\"1982\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"0,85\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"0,70\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"0,51\",\"jQTO\":\"-\"},{\"jNUC\":386,\"jNOC\":\"OCTO\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"0,49\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,30\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,26\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,24\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,22\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,22\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,21\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,20\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,20\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,19\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,19\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,17\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,17\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20200.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":16500.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":4600.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":17500.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":12700.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":12700.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20200.0,\"jQA\":null,\"jPC\":\"1,20\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":16500.0,\"jQA\":null,\"jPC\":\"1,20\",\"jQTO\":\"-\"},{\"jNUC\":47,\"jNOC\":\"SOLIDEZ\",\"jQT\":10000.0,\"jQA\":null,\"jPC\":\"1,21\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2900.0,\"jQA\":null,\"jPC\":\"1,25\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"1,27\",\"jQTO\":\"-\"},{\"jNUC\":37,\"jNOC\":\"UM\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"1,31\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":7000.0,\"jQA\":null,\"jPC\":\"1,33\",\"jQTO\":\"-\"},{\"jNUC\":147,\"jNOC\":\"ATIVA\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"1,34\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":5100.0,\"jQA\":null,\"jPC\":\"1,35\",\"jQTO\":\"-\"},{\"jNUC\":386,\"jNOC\":\"OCTO\",\"jQT\":3000.0,\"jQA\":null,\"jPC\":\"1,35\",\"jQTO\":\"-\"},{\"jNUC\":27,\"jNOC\":\"SANTANDER\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"1,39\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"1,35\",\"jQTO\":\"-\"},{\"jNUC\":37,\"jNOC\":\"UM\",\"jQT\":3000.0,\"jQA\":null,\"jPC\":\"1,35\",\"jQTO\":\"-\"},{\"jNUC\":58,\"jNOC\":\"SOCOPA\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"2,70\",\"jQTO\":\"-\"},{\"jNUC\":72,\"jNOC\":\"BRADESCO\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"3,00\",\"jQTO\":\"-\"},{\"jNUC\":72,\"jNOC\":\"BRADESCO\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"4,00\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRD73\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":22100.0,\"jQA\":null,\"jPC\":\"1,00\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":17900.0,\"jQA\":null,\"jPC\":\"0,99\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":21900.0,\"jQA\":null,\"jPC\":\"0,99\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":21900.0,\"jQA\":null,\"jPC\":\"1,03\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":17900.0,\"jQA\":null,\"jPC\":\"1,03\",\"jQTO\":\"-\"}]}],\"LivrosAgregados\":[],\"LivrosDeNegocios\":[],\"MensagensParaCotacao\":[],\"MensagensParaCotacaoOrdem\":[],\"MensagensParaCotacaoRapida\":[{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134856828\",\"jCN\":\"PETRP70\",\"jDN\":\"20160310\",\"jHN\":\"13:02:59\",\"jCC\":\"45\",\"jCV\":\"45\",\"jCCN\":\"CREDIT SUISSE\",\"jCVN\":\"CREDIT SUISSE\",\"jMPC\":\"0,55\",\"jMPV\":\"0,58\",\"jQMPC\":\"24500\",\"jQMPV\":\"30100\",\"jQAMC\":\"54900\",\"jQAMV\":\"54900\",\"jPC\":\"0,59\",\"jPTA\":\"0,00\",\"jVTO\":\"0,00\",\"jDTO\":\"10101000000\",\"jPM\":\"0,53\",\"jQT\":\"500\",\"jXD\":\"0,590\",\"jND\":\"0,480\",\"jLA\":\"21328\",\"jNN\":\"12\",\"jIV\":\"\",\"jVR\":\"+5,36\",\"jEP\":\"2\",\"jVA\":\"0,48\",\"jVF\":\"0,56\",\"jIO\":\"P\",\"jPE\":\"7,00\",\"jDE\":\"00000000\",\"jDC\":null,\"jDV\":\"\"},{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134842273\",\"jCN\":\"PETRP73\",\"jDN\":\"20160310\",\"jHN\":\"10:18:38\",\"jCC\":\"45\",\"jCV\":\"45\",\"jCCN\":\"CREDIT SUISSE\",\"jCVN\":\"CREDIT SUISSE\",\"jMPC\":\"0,68\",\"jMPV\":\"0,72\",\"jQMPC\":\"23300\",\"jQMPV\":\"28600\",\"jQAMC\":\"51900\",\"jQAMV\":\"81700\",\"jPC\":\"0,62\",\"jPTA\":\"0,00\",\"jVTO\":\"-,00\",\"jDTO\":\"10101000000\",\"jPM\":\"0,62\",\"jQT\":\"\",\"jXD\":\"0,620\",\"jND\":\"0,620\",\"jLA\":\"1240\",\"jNN\":\"1\",\"jIV\":\"-\",\"jVR\":\"-10,14\",\"jEP\":\"2\",\"jVA\":\"0,62\",\"jVF\":\"0,69\",\"jIO\":\"P\",\"jPE\":\"7,30\",\"jDE\":\"30000000\",\"jDC\":null,\"jDV\":\"\"},{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134857702\",\"jCN\":\"PETR4\",\"jDN\":\"20160310\",\"jHN\":\"13:48:57\",\"jCC\":\"8\",\"jCV\":\"8\",\"jCCN\":\"UBS\",\"jCVN\":\"UBS\",\"jMPC\":\"7,53\",\"jMPV\":\"7,54\",\"jQMPC\":\"300\",\"jQMPV\":\"400\",\"jQAMC\":\"11400\",\"jQAMV\":\"10500\",\"jPC\":\"7,54\",\"jPTA\":\"7,80\",\"jVTO\":\"-2,63\",\"jDTO\":\"10101000000\",\"jPM\":\"7,58\",\"jQT\":\"400\",\"jXD\":\"7,830\",\"jND\":\"7,440\",\"jLA\":\"343405212\",\"jNN\":\"29047\",\"jIV\":\"-\",\"jVR\":\"-0,79\",\"jEP\":\"2\",\"jVA\":\"7,80\",\"jVF\":\"7,60\",\"jIO\":\"X\",\"jPE\":\"0,00\",\"jDE\":\"00000000\",\"jDC\":null,\"jDV\":\"\"},{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134856812\",\"jCN\":\"PETRD70\",\"jDN\":\"20160310\",\"jHN\":\"13:43:50\",\"jCC\":\"45\",\"jCV\":\"45\",\"jCCN\":\"CREDIT SUISSE\",\"jCVN\":\"CREDIT SUISSE\",\"jMPC\":\"1,16\",\"jMPV\":\"1,19\",\"jQMPC\":\"20400\",\"jQMPV\":\"20200\",\"jQAMC\":\"20400\",\"jQAMV\":\"54200\",\"jPC\":\"1,17\",\"jPTA\":\"0,00\",\"jVTO\":\"0,00\",\"jDTO\":\"10101000000\",\"jPM\":\"1,20\",\"jQT\":\"1000\",\"jXD\":\"1,360\",\"jND\":\"1,110\",\"jLA\":\"279373\",\"jNN\":\"62\",\"jIV\":\"\",\"jVR\":\"+1,74\",\"jEP\":\"2\",\"jVA\":\"1,36\",\"jVF\":\"1,15\",\"jIO\":\"C\",\"jPE\":\"7,00\",\"jDE\":\"00000000\",\"jDC\":null,\"jDV\":\"\"},{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134849870\",\"jCN\":\"PETRD73\",\"jDN\":\"20160310\",\"jHN\":\"13:04:28\",\"jCC\":\"45\",\"jCV\":\"45\",\"jCCN\":\"CREDIT SUISSE\",\"jCVN\":\"CREDIT SUISSE\",\"jMPC\":\"1,00\",\"jMPV\":\"1,03\",\"jQMPC\":\"22100\",\"jQMPV\":\"21900\",\"jQAMC\":\"22100\",\"jQAMV\":\"1000\",\"jPC\":\"0,98\",\"jPTA\":\"0,00\",\"jVTO\":\"-,00\",\"jDTO\":\"10101000000\",\"jPM\":\"0,99\",\"jQT\":\"10000\",\"jXD\":\"1,160\",\"jND\":\"0,980\",\"jLA\":\"56255\",\"jNN\":\"6\",\"jIV\":\"-\",\"jVR\":\"-10,91\",\"jEP\":\"2\",\"jVA\":\"1,16\",\"jVF\":\"1,10\",\"jIO\":\"C\",\"jPE\":\"7,30\",\"jDE\":\"30000000\",\"jDC\":null,\"jDV\":\"\"}],\"MensagensParaAcompanhamentoDeOrdem\":[],\"MensagensParaAcompanhamentoDeStartStop\":[],\"Avisos\":null,\"Alertas\":[]}");
-		OFERTA_PAPEIS.put(2L, "{\"IdDaRequisicao\":\"1457628538890\",\"LivrosDeOferta\":[],\"LivrosDeOferta30\":[{\"Papel\":\"PETR4\",\"OfertasDeCompra\":[{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":262,\"jNOC\":\"MIRAE ASSET\",\"jQT\":1400.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,53\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":1500.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":6500.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":131,\"jNOC\":\"FATOR\",\"jQT\":17000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,52\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":4400.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":2500.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"},{\"jNUC\":85,\"jNOC\":\"BTG PACTUAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,51\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":16,\"jNOC\":\"JP MORGAN\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":238,\"jNOC\":\"GOLDMAN SACHS\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":9,\"jNOC\":\"DEUTSCHE BANK\",\"jQT\":900.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,54\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":16,\"jNOC\":\"JP MORGAN\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":1500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":59,\"jNOC\":\"J SAFRA\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":85,\"jNOC\":\"BTG PACTUAL\",\"jQT\":600.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":3500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":4000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":15,\"jNOC\":\"GUIDE\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":15,\"jNOC\":\"GUIDE\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":6000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":8,\"jNOC\":\"UBS\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20000.0,\"jQA\":null,\"jPC\":\"7,55\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRP73\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":23300.0,\"jQA\":null,\"jPC\":\"0,68\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":28600.0,\"jQA\":null,\"jPC\":\"0,68\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":29800.0,\"jQA\":null,\"jPC\":\"0,66\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":28600.0,\"jQA\":null,\"jPC\":\"0,72\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":23300.0,\"jQA\":null,\"jPC\":\"0,72\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":29800.0,\"jQA\":null,\"jPC\":\"0,72\",\"jQTO\":\"-\"},{\"jNUC\":386,\"jNOC\":\"OCTO\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"0,95\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRP70\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":24500.0,\"jQA\":null,\"jPC\":\"0,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30400.0,\"jQA\":null,\"jPC\":\"0,55\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30100.0,\"jQA\":null,\"jPC\":\"0,54\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":31500.0,\"jQA\":null,\"jPC\":\"0,53\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"0,48\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"0,47\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"0,45\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30100.0,\"jQA\":null,\"jPC\":\"0,58\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":24800.0,\"jQA\":null,\"jPC\":\"0,58\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":30100.0,\"jQA\":null,\"jPC\":\"0,59\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":24800.0,\"jQA\":null,\"jPC\":\"0,59\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":10000.0,\"jQA\":null,\"jPC\":\"0,62\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"0,65\",\"jQTO\":\"-\"},{\"jNUC\":262,\"jNOC\":\"MIRAE ASSET\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"0,85\",\"jQTO\":\"-\"},{\"jNUC\":308,\"jNOC\":\"CLEAR\",\"jQT\":3700.0,\"jQA\":null,\"jPC\":\"0,90\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRD70\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20400.0,\"jQA\":null,\"jPC\":\"1,16\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20200.0,\"jQA\":null,\"jPC\":\"1,15\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":16600.0,\"jQA\":null,\"jPC\":\"1,15\",\"jQTO\":\"-\"},{\"jNUC\":15,\"jNOC\":\"GUIDE\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"1,15\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":16600.0,\"jQA\":null,\"jPC\":\"1,14\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"1,12\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":17500.0,\"jQA\":null,\"jPC\":\"1,12\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":4900.0,\"jQA\":null,\"jPC\":\"1,10\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"1,00\",\"jQTO\":\"-\"},{\"jNUC\":114,\"jNOC\":\"ITAU\",\"jQT\":400.0,\"jQA\":null,\"jPC\":\"0,91\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":1200.0,\"jQA\":null,\"jPC\":\"0,90\",\"jQTO\":\"-\"},{\"jNUC\":1982,\"jNOC\":\"1982\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"0,85\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"0,70\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"0,51\",\"jQTO\":\"-\"},{\"jNUC\":386,\"jNOC\":\"OCTO\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"0,49\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,30\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,26\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,24\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,22\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,22\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,21\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,20\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,20\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,19\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,19\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,17\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,17\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20200.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":16500.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":4600.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":17500.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":12700.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":77,\"jNOC\":\"CITIGROUP\",\"jQT\":12700.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":20200.0,\"jQA\":null,\"jPC\":\"1,20\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":16500.0,\"jQA\":null,\"jPC\":\"1,20\",\"jQTO\":\"-\"},{\"jNUC\":47,\"jNOC\":\"SOLIDEZ\",\"jQT\":10000.0,\"jQA\":null,\"jPC\":\"1,21\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2900.0,\"jQA\":null,\"jPC\":\"1,25\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"1,27\",\"jQTO\":\"-\"},{\"jNUC\":37,\"jNOC\":\"UM\",\"jQT\":2000.0,\"jQA\":null,\"jPC\":\"1,31\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":7000.0,\"jQA\":null,\"jPC\":\"1,33\",\"jQTO\":\"-\"},{\"jNUC\":147,\"jNOC\":\"ATIVA\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"1,34\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":5100.0,\"jQA\":null,\"jPC\":\"1,35\",\"jQTO\":\"-\"},{\"jNUC\":386,\"jNOC\":\"OCTO\",\"jQT\":3000.0,\"jQA\":null,\"jPC\":\"1,35\",\"jQTO\":\"-\"},{\"jNUC\":27,\"jNOC\":\"SANTANDER\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"1,39\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"1,35\",\"jQTO\":\"-\"},{\"jNUC\":37,\"jNOC\":\"UM\",\"jQT\":3000.0,\"jQA\":null,\"jPC\":\"1,35\",\"jQTO\":\"-\"},{\"jNUC\":58,\"jNOC\":\"SOCOPA\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"2,70\",\"jQTO\":\"-\"},{\"jNUC\":72,\"jNOC\":\"BRADESCO\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"3,00\",\"jQTO\":\"-\"},{\"jNUC\":72,\"jNOC\":\"BRADESCO\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"4,00\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRD73\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":22100.0,\"jQA\":null,\"jPC\":\"1,00\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":17900.0,\"jQA\":null,\"jPC\":\"0,99\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":21900.0,\"jQA\":null,\"jPC\":\"0,99\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":21900.0,\"jQA\":null,\"jPC\":\"1,03\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":17900.0,\"jQA\":null,\"jPC\":\"1,03\",\"jQTO\":\"-\"}]}],\"LivrosAgregados\":[],\"LivrosDeNegocios\":[],\"MensagensParaCotacao\":[],\"MensagensParaCotacaoOrdem\":[],\"MensagensParaCotacaoRapida\":[{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134856828\",\"jCN\":\"PETRP70\",\"jDN\":\"20160310\",\"jHN\":\"13:02:59\",\"jCC\":\"45\",\"jCV\":\"45\",\"jCCN\":\"CREDIT SUISSE\",\"jCVN\":\"CREDIT SUISSE\",\"jMPC\":\"0,55\",\"jMPV\":\"0,58\",\"jQMPC\":\"24500\",\"jQMPV\":\"30100\",\"jQAMC\":\"54900\",\"jQAMV\":\"54900\",\"jPC\":\"0,59\",\"jPTA\":\"0,00\",\"jVTO\":\"0,00\",\"jDTO\":\"10101000000\",\"jPM\":\"0,53\",\"jQT\":\"500\",\"jXD\":\"0,590\",\"jND\":\"0,480\",\"jLA\":\"21328\",\"jNN\":\"12\",\"jIV\":\"\",\"jVR\":\"+5,36\",\"jEP\":\"2\",\"jVA\":\"0,48\",\"jVF\":\"0,56\",\"jIO\":\"P\",\"jPE\":\"7,00\",\"jDE\":\"00000000\",\"jDC\":null,\"jDV\":\"\"},{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134842273\",\"jCN\":\"PETRP73\",\"jDN\":\"20160310\",\"jHN\":\"10:18:38\",\"jCC\":\"45\",\"jCV\":\"45\",\"jCCN\":\"CREDIT SUISSE\",\"jCVN\":\"CREDIT SUISSE\",\"jMPC\":\"0,68\",\"jMPV\":\"0,72\",\"jQMPC\":\"23300\",\"jQMPV\":\"28600\",\"jQAMC\":\"51900\",\"jQAMV\":\"81700\",\"jPC\":\"0,62\",\"jPTA\":\"0,00\",\"jVTO\":\"-,00\",\"jDTO\":\"10101000000\",\"jPM\":\"0,62\",\"jQT\":\"\",\"jXD\":\"0,620\",\"jND\":\"0,620\",\"jLA\":\"1240\",\"jNN\":\"1\",\"jIV\":\"-\",\"jVR\":\"-10,14\",\"jEP\":\"2\",\"jVA\":\"0,62\",\"jVF\":\"0,69\",\"jIO\":\"P\",\"jPE\":\"7,30\",\"jDE\":\"30000000\",\"jDC\":null,\"jDV\":\"\"},{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134857702\",\"jCN\":\"PETR4\",\"jDN\":\"20160310\",\"jHN\":\"13:48:57\",\"jCC\":\"8\",\"jCV\":\"8\",\"jCCN\":\"UBS\",\"jCVN\":\"UBS\",\"jMPC\":\"7,53\",\"jMPV\":\"7,54\",\"jQMPC\":\"300\",\"jQMPV\":\"400\",\"jQAMC\":\"11400\",\"jQAMV\":\"10500\",\"jPC\":\"7,54\",\"jPTA\":\"7,80\",\"jVTO\":\"-2,63\",\"jDTO\":\"10101000000\",\"jPM\":\"7,58\",\"jQT\":\"400\",\"jXD\":\"7,830\",\"jND\":\"7,440\",\"jLA\":\"343405212\",\"jNN\":\"29047\",\"jIV\":\"-\",\"jVR\":\"-0,79\",\"jEP\":\"2\",\"jVA\":\"7,80\",\"jVF\":\"7,60\",\"jIO\":\"X\",\"jPE\":\"0,00\",\"jDE\":\"00000000\",\"jDC\":null,\"jDV\":\"\"},{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134856812\",\"jCN\":\"PETRD70\",\"jDN\":\"20160310\",\"jHN\":\"13:43:50\",\"jCC\":\"45\",\"jCV\":\"45\",\"jCCN\":\"CREDIT SUISSE\",\"jCVN\":\"CREDIT SUISSE\",\"jMPC\":\"1,16\",\"jMPV\":\"1,19\",\"jQMPC\":\"20400\",\"jQMPV\":\"20200\",\"jQAMC\":\"20400\",\"jQAMV\":\"54200\",\"jPC\":\"1,17\",\"jPTA\":\"0,00\",\"jVTO\":\"0,00\",\"jDTO\":\"10101000000\",\"jPM\":\"1,20\",\"jQT\":\"1000\",\"jXD\":\"1,360\",\"jND\":\"1,110\",\"jLA\":\"279373\",\"jNN\":\"62\",\"jIV\":\"\",\"jVR\":\"+1,74\",\"jEP\":\"2\",\"jVA\":\"1,36\",\"jVF\":\"1,15\",\"jIO\":\"C\",\"jPE\":\"7,00\",\"jDE\":\"00000000\",\"jDC\":null,\"jDV\":\"\"},{\"jHTM\":\"NE\",\"jHTB\":\"BV\",\"jHDT\":\"20160310\",\"jHHR\":\"134849870\",\"jCN\":\"PETRD73\",\"jDN\":\"20160310\",\"jHN\":\"13:04:28\",\"jCC\":\"45\",\"jCV\":\"45\",\"jCCN\":\"CREDIT SUISSE\",\"jCVN\":\"CREDIT SUISSE\",\"jMPC\":\"1,00\",\"jMPV\":\"1,03\",\"jQMPC\":\"22100\",\"jQMPV\":\"21900\",\"jQAMC\":\"22100\",\"jQAMV\":\"1000\",\"jPC\":\"0,98\",\"jPTA\":\"0,00\",\"jVTO\":\"-,00\",\"jDTO\":\"10101000000\",\"jPM\":\"0,99\",\"jQT\":\"10000\",\"jXD\":\"1,160\",\"jND\":\"0,980\",\"jLA\":\"56255\",\"jNN\":\"6\",\"jIV\":\"-\",\"jVR\":\"-10,91\",\"jEP\":\"2\",\"jVA\":\"1,16\",\"jVF\":\"1,10\",\"jIO\":\"C\",\"jPE\":\"7,30\",\"jDE\":\"30000000\",\"jDC\":null,\"jDV\":\"\"}],\"MensagensParaAcompanhamentoDeOrdem\":[],\"MensagensParaAcompanhamentoDeStartStop\":[],\"Avisos\":null,\"Alertas\":[]}");
-		*/
-		
 		// Salva em arquivo a leitura do livro de ofertas
 		FileUtils.writeLines(new File("LivroOfertas_" + System.currentTimeMillis()), OFERTA_PAPEIS.values());
 		
@@ -187,6 +194,7 @@ public class MonitorLivroOfertas {
 			String response = MonitorLivroOfertas.GET(liberarPapel, ht);
 			LogUtil.log(response);
 		}
+		*/
 		
 		// sai da aplicacao
 		System.exit(0);
@@ -253,35 +261,58 @@ public class MonitorLivroOfertas {
 	private class ProcessarLivroOfertas implements Runnable {
 
 		private long MAX_ITERACOES = 10;
+		
+		private boolean isRunning = true;
+		
+		public void terminate() {
+			this.isRunning = false;
+		}
+		
 		@Override
 		public void run() {
+
+			while (this.isRunning) {
 			
-			for (int i = 0; i < MAX_ITERACOES; i++) {
-				// marca o inicio
-				long inicio = System.currentTimeMillis();
-				// Vai processar os dados
-				processarLivroOfertas();
-				// marca o fim do processamento
-				long fim = System.currentTimeMillis();
-				try {
-					// se tiver terminado antes do tempo para leitura dos dados
-					if ((fim - inicio) < MIN_TIMEOUT_LEITURA)
-						// para a thread pelo tempo restante
-						Thread.sleep(MonitorLivroOfertas.MIN_TIMEOUT_LEITURA - (fim - inicio));
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+				for (int i = 0; i < MAX_ITERACOES; i++) {
+					// marca o inicio
+					long inicio = System.currentTimeMillis();
+					// Vai processar os dados
+					processarLivroOfertas();
+					// marca o fim do processamento
+					long fim = System.currentTimeMillis();
+					try {
+						// se tiver terminado antes do tempo para leitura dos dados
+						if ((fim - inicio) < MIN_TIMEOUT_LEITURA)
+							// para a thread pelo tempo restante
+							Thread.sleep(MonitorLivroOfertas.MIN_TIMEOUT_LEITURA - (fim - inicio));
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
+				
 			}
-			
 		}
+		
 		
 		public void processarLivroOfertas() {
 			long inicio = System.currentTimeMillis();
 			// recupera a leitura mais recente
 			String leituraAtual = getConteudoRecente();
-			//String leituraAtual = "";
+			
+			/*
+			String arquivo = "LivroOfertas_1457726659704";
+			List<String> linhas = null;
+			try {
+				linhas = FileUtils.readLines(new File(arquivo));
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}			
+			String leituraAtual = linhas.get(0);
 			//LogUtil.log(leituraAtual);
+			*/
 			//leituraAtual = "{\"Papel\":\"PETRD70\"}";
 			//leituraAtual = "{\"Papel\":\"PETRD70\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":21700.0,\"jQA\":null,\"jPC\":\"1,15\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":31800.0,\"jQA\":null,\"jPC\":\"1,14\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":8200.0,\"jQA\":null,\"jPC\":\"1,05\",\"jQTO\":\"-\"},{\"jNUC\":37,\"jNOC\":\"UM\",\"jQT\":10000.0,\"jQA\":null,\"jPC\":\"1,01\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":10000.0,\"jQA\":null,\"jPC\":\"0,95\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":1200.0,\"jQA\":null,\"jPC\":\"0,90\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"0,90\",\"jQTO\":\"-\"},{\"jNUC\":1982,\"jNOC\":\"1982\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"0,85\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2900.0,\"jQA\":null,\"jPC\":\"0,80\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"0,52\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,30\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,26\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,24\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,22\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,22\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,21\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,20\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,20\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,19\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,19\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,17\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,17\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,16\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,16\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,15\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":40000.0,\"jQA\":null,\"jPC\":\"0,15\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,15\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":25700.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":15,\"jNOC\":\"GUIDE\",\"jQT\":4700.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":25700.0,\"jQA\":null,\"jPC\":\"1,20\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":31800.0,\"jQA\":null,\"jPC\":\"1,20\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":31800.0,\"jQA\":null,\"jPC\":\"1,21\",\"jQTO\":\"-\"},{\"jNUC\":386,\"jNOC\":\"OCTO\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"1,24\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":3500.0,\"jQA\":null,\"jPC\":\"1,37\",\"jQTO\":\"-\"},{\"jNUC\":58,\"jNOC\":\"SOCOPA\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"2,70\",\"jQTO\":\"-\"},{\"jNUC\":72,\"jNOC\":\"BRADESCO\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"4,00\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":8200.0,\"jQA\":null,\"jPC\":\"30,00\",\"jQTO\":\"-\"}]}";
 			//leituraAtual = "[{\"Papel\":\"PETRD70\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":21700.0,\"jQA\":null,\"jPC\":\"1,15\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":31800.0,\"jQA\":null,\"jPC\":\"1,14\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":8200.0,\"jQA\":null,\"jPC\":\"1,05\",\"jQTO\":\"-\"},{\"jNUC\":37,\"jNOC\":\"UM\",\"jQT\":10000.0,\"jQA\":null,\"jPC\":\"1,01\",\"jQTO\":\"-\"},{\"jNUC\":735,\"jNOC\":\"ICAP\",\"jQT\":10000.0,\"jQA\":null,\"jPC\":\"0,95\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":1200.0,\"jQA\":null,\"jPC\":\"0,90\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"0,90\",\"jQTO\":\"-\"},{\"jNUC\":1982,\"jNOC\":\"1982\",\"jQT\":300.0,\"jQA\":null,\"jPC\":\"0,85\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":2900.0,\"jQA\":null,\"jPC\":\"0,80\",\"jQTO\":\"-\"},{\"jNUC\":3,\"jNOC\":\"XP\",\"jQT\":5000.0,\"jQA\":null,\"jPC\":\"0,52\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,30\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,26\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,24\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,22\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,22\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,21\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,20\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,20\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,19\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,19\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":100.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,18\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,17\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,17\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,16\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,16\",\"jQTO\":\"-\"},{\"jNUC\":86,\"jNOC\":\"WALPIRES\",\"jQT\":51000.0,\"jQA\":null,\"jPC\":\"0,15\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":40000.0,\"jQA\":null,\"jPC\":\"0,15\",\"jQTO\":\"-\"},{\"jNUC\":120,\"jNOC\":\"BRASIL PLURAL\",\"jQT\":50000.0,\"jQA\":null,\"jPC\":\"0,15\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":25700.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":15,\"jNOC\":\"GUIDE\",\"jQT\":4700.0,\"jQA\":null,\"jPC\":\"1,19\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":25700.0,\"jQA\":null,\"jPC\":\"1,20\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":31800.0,\"jQA\":null,\"jPC\":\"1,20\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":31800.0,\"jQA\":null,\"jPC\":\"1,21\",\"jQTO\":\"-\"},{\"jNUC\":386,\"jNOC\":\"OCTO\",\"jQT\":1000.0,\"jQA\":null,\"jPC\":\"1,24\",\"jQTO\":\"-\"},{\"jNUC\":39,\"jNOC\":\"AGORA\",\"jQT\":3500.0,\"jQA\":null,\"jPC\":\"1,37\",\"jQTO\":\"-\"},{\"jNUC\":58,\"jNOC\":\"SOCOPA\",\"jQT\":500.0,\"jQA\":null,\"jPC\":\"2,70\",\"jQTO\":\"-\"},{\"jNUC\":72,\"jNOC\":\"BRADESCO\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"4,00\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":8200.0,\"jQA\":null,\"jPC\":\"30,00\",\"jQTO\":\"-\"}]},{\"Papel\":\"PETRP70\",\"OfertasDeCompra\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":37600.0,\"jQA\":null,\"jPC\":\"0,58\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":38400.0,\"jQA\":null,\"jPC\":\"0,57\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":37600.0,\"jQA\":null,\"jPC\":\"0,57\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":46500.0,\"jQA\":null,\"jPC\":\"0,57\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":46500.0,\"jQA\":null,\"jPC\":\"0,56\",\"jQTO\":\"-\"}],\"OfertasDeVenda\":[{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":27600.0,\"jQA\":null,\"jPC\":\"0,62\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":7600.0,\"jQA\":null,\"jPC\":\"0,62\",\"jQTO\":\"-\"},{\"jNUC\":45,\"jNOC\":\"CREDIT SUISSE\",\"jQT\":46400.0,\"jQA\":null,\"jPC\":\"0,62\",\"jQTO\":\"-\"},{\"jNUC\":40,\"jNOC\":\"MORGAN STANLEY\",\"jQT\":30800.0,\"jQA\":null,\"jPC\":\"0,62\",\"jQTO\":\"-\"},{\"jNUC\":10,\"jNOC\":\"SPINELLI\",\"jQT\":200.0,\"jQA\":null,\"jPC\":\"0,70\",\"jQTO\":\"-\"}]}]";
@@ -298,13 +329,6 @@ public class MonitorLivroOfertas {
 			//LivroOferta[] lo2 = gson.fromJson(leituraAtual, LivroOferta[].class);
 			LeituraLivroOferta llo =  gson.fromJson(leituraAtual, LeituraLivroOferta.class);
 			
-			/*
-			LivroOferta loTemp = new LivroOferta();
-			loTemp.Papel = "PETR4";
-			loTemp.OfertasDeVenda = new ArrayList<Oferta>();
-			loTemp.OfertasDeVenda.add(new Oferta());
-			loTemp.OfertasDeVenda.get(0).jPC = "7,00";
-			*/
 			if (llo != null && llo.LivrosDeOferta30 != null && llo.LivrosDeOferta30.size() > 0) {
 				// joga a acao para o inicio da lista
 				/*
@@ -317,8 +341,6 @@ public class MonitorLivroOfertas {
 				llo.LivrosDeOferta30.add(0, loTemp);
 				*/
 				List<IAtivoMini> ativos = new ArrayList<>(MAP_ATIVOS.values());
-
-				//llo.LivrosDeOferta30.add(0, loTemp);
 				//BigDecimal precoAcao = new BigDecimal(llo.LivrosDeOferta30.get(0).OfertasDeVenda.get(0).jPC.replace(",", "."));
 				
 				LivroOferta loTemp = new LivroOferta();
@@ -349,7 +371,8 @@ public class MonitorLivroOfertas {
 					// verifica se tem a anomalia
 					boolean temAnomalia = temAnomalia1(precoAcao, precoExercicioOpcao, qtdDiasParaVencimento, taxaDeJuros, precoMelhorCompraCall, precoMelhorVendaPUT, percReferencia);
 					if (temAnomalia) {
-						// notifica por email ou por aplicacao
+						// notifica por email/pela aplicacao
+						notificarUsuarios("Encontrou anomalia na " + loCall.Papel);
 					}
 				}
 				LogUtil.log("FIM");
@@ -360,6 +383,13 @@ public class MonitorLivroOfertas {
 
 	}
 	
+	private void notificarUsuarios(String msg) {
+		INotificacao notificacao = new Notificacao();
+		for (UsuarioAlert usuario : USUARIOS) {
+			notificacao.notificar(usuario, msg);
+		}
+	}
+
 	/*
 	public static void main(String[] args) {
 		ProcessarLivroOfertas plo = new MonitorLivroOfertas().new ProcessarLivroOfertas();
